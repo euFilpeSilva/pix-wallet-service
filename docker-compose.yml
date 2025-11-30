@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: pix-postgres
+    environment:
+      POSTGRES_DB: pixdb
+      POSTGRES_USER: pixuser
+      POSTGRES_PASSWORD: pixpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pixdb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pixuser -d pixdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  pix-service:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/pixdb
+      DB_USER: pixuser
+      DB_PASSWORD: pixpass
+    ports:
+      - "8080:8080"
+    # Em produção, definir as variáveis de ambiente sem defaults fracos e usar um gerenciador de segredos.
+volumes:
+  pixdb_data:

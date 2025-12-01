@@ -1,7 +1,6 @@
 package com.pixservice.presentation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pixservice.application.dto.CreateWalletRequest;
 import com.pixservice.application.dto.PixTransferRequest;
 import com.pixservice.application.dto.PixWebhookRequest;
 import com.pixservice.domain.model.*;
@@ -112,8 +111,8 @@ class WebhookControllerIntegrationTest {
         List<LedgerEntry> ledgerEntries = ledgerEntryRepository.findByWalletOrderByCreatedAtDesc(updatedToWallet);
         assertFalse(ledgerEntries.isEmpty(), "Deve haver pelo menos 1 ledger entry");
         assertTrue(ledgerEntries.stream().anyMatch(entry ->
-                entry.getType() == LedgerEntryType.PIX_TRANSFER_IN &&
-                entry.getAmount().compareTo(new BigDecimal("100.00")) == 0),
+                        entry.getType() == LedgerEntryType.PIX_TRANSFER_IN &&
+                                entry.getAmount().compareTo(new BigDecimal("100.00")) == 0),
                 "Deve haver um ledger entry PIX_TRANSFER_IN de 100.00. Entries encontrados: " + ledgerEntries.size());
     }
 

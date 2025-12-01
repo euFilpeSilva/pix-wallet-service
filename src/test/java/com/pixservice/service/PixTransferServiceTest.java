@@ -1,13 +1,13 @@
-package com.pixservice.application.service;
+package com.pixservice.service;
 
 import com.pixservice.application.dto.PixTransferRequest;
 import com.pixservice.application.dto.PixTransferResponse;
+import com.pixservice.application.service.PixTransferService;
 import com.pixservice.domain.model.*;
 import com.pixservice.domain.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -76,6 +76,7 @@ class PixTransferServiceTest {
         PixTransferRequest request = new PixTransferRequest(1L, "recipient@email.com", new BigDecimal("100.00"));
 
         when(idempotencyService.getIdempotentResponse(idempotencyKey, PixTransferResponse.class)).thenReturn(Optional.empty());
+        when(walletRepository.findById(1L)).thenReturn(Optional.of(fromWallet));
         when(walletRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(fromWallet));
         when(pixKeyRepository.findByKeyValue("recipient@email.com")).thenReturn(Optional.of(toPixKey));
         when(walletRepository.save(any(Wallet.class))).thenReturn(fromWallet);
@@ -93,6 +94,7 @@ class PixTransferServiceTest {
         assertEquals(new BigDecimal("900.00"), fromWallet.getBalance());
 
         verify(idempotencyService, times(1)).getIdempotentResponse(idempotencyKey, PixTransferResponse.class);
+        verify(walletRepository, times(1)).findById(1L);
         verify(walletRepository, times(1)).findByIdForUpdate(1L);
         verify(pixKeyRepository, times(1)).findByKeyValue("recipient@email.com");
         verify(walletRepository, times(1)).save(fromWallet);
@@ -133,7 +135,7 @@ class PixTransferServiceTest {
         String idempotencyKey = "transfer-123";
         PixTransferRequest request = new PixTransferRequest(1L, "recipient@email.com", BigDecimal.ZERO);
         when(idempotencyService.getIdempotentResponse(idempotencyKey, PixTransferResponse.class)).thenReturn(Optional.empty());
-        when(walletRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(fromWallet));
+        when(walletRepository.findById(1L)).thenReturn(Optional.of(fromWallet));
         when(pixKeyRepository.findByKeyValue("recipient@email.com")).thenReturn(Optional.of(toPixKey));
 
         // Validator agora lança a exceção
@@ -153,7 +155,7 @@ class PixTransferServiceTest {
         String idempotencyKey = "transfer-123";
         PixTransferRequest request = new PixTransferRequest(99L, "recipient@email.com", new BigDecimal("100.00"));
         when(idempotencyService.getIdempotentResponse(idempotencyKey, PixTransferResponse.class)).thenReturn(Optional.empty());
-        when(walletRepository.findByIdForUpdate(99L)).thenReturn(Optional.empty());
+        when(walletRepository.findById(99L)).thenReturn(Optional.empty());
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             pixTransferService.transfer(idempotencyKey, request);
@@ -161,7 +163,7 @@ class PixTransferServiceTest {
 
         assertEquals("Carteira de origem não encontrada.", exception.getMessage());
         verify(idempotencyService, times(1)).getIdempotentResponse(idempotencyKey, PixTransferResponse.class);
-        verify(walletRepository, times(1)).findByIdForUpdate(99L);
+        verify(walletRepository, times(1)).findById(99L);
         verify(pixKeyRepository, never()).findByKeyValue(anyString());
     }
 
@@ -170,7 +172,7 @@ class PixTransferServiceTest {
         String idempotencyKey = "transfer-123";
         PixTransferRequest request = new PixTransferRequest(1L, "nonexistent@email.com", new BigDecimal("100.00"));
         when(idempotencyService.getIdempotentResponse(idempotencyKey, PixTransferResponse.class)).thenReturn(Optional.empty());
-        when(walletRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(fromWallet));
+        when(walletRepository.findById(1L)).thenReturn(Optional.of(fromWallet));
         when(pixKeyRepository.findByKeyValue("nonexistent@email.com")).thenReturn(Optional.empty());
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
@@ -179,7 +181,7 @@ class PixTransferServiceTest {
 
         assertEquals("Chave Pix de destino não encontrada.", exception.getMessage());
         verify(idempotencyService, times(1)).getIdempotentResponse(idempotencyKey, PixTransferResponse.class);
-        verify(walletRepository, times(1)).findByIdForUpdate(1L);
+        verify(walletRepository, times(1)).findById(1L);
         verify(pixKeyRepository, times(1)).findByKeyValue("nonexistent@email.com");
     }
 
@@ -191,7 +193,7 @@ class PixTransferServiceTest {
         toPixKey.setWallet(fromWallet);
 
         when(idempotencyService.getIdempotentResponse(idempotencyKey, PixTransferResponse.class)).thenReturn(Optional.empty());
-        when(walletRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(fromWallet));
+        when(walletRepository.findById(1L)).thenReturn(Optional.of(fromWallet));
         when(pixKeyRepository.findByKeyValue(toPixKey.getKeyValue())).thenReturn(Optional.of(toPixKey));
 
         // Validator agora lança a exceção
@@ -204,7 +206,7 @@ class PixTransferServiceTest {
 
         assertEquals("Não é possível transferir para a mesma carteira.", exception.getMessage());
         verify(idempotencyService, times(1)).getIdempotentResponse(idempotencyKey, PixTransferResponse.class);
-        verify(walletRepository, times(1)).findByIdForUpdate(1L);
+        verify(walletRepository, times(1)).findById(1L);
         verify(pixKeyRepository, times(1)).findByKeyValue(toPixKey.getKeyValue());
         verify(walletRepository, never()).save(any(Wallet.class));
     }

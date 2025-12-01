@@ -1,7 +1,8 @@
-package com.pixservice.application.service;
+package com.pixservice.service;
 
 import com.pixservice.application.dto.PixKeyResponse;
 import com.pixservice.application.dto.RegisterPixKeyRequest;
+import com.pixservice.application.service.PixKeyService;
 import com.pixservice.domain.model.PixKey;
 import com.pixservice.domain.model.PixKeyType;
 import com.pixservice.domain.model.Wallet;

@@ -1,7 +1,8 @@
-package com.pixservice.application.service;
+package com.pixservice.service;
 
 import com.pixservice.application.dto.CreateWalletRequest;
 import com.pixservice.application.dto.WalletResponse;
+import com.pixservice.application.service.WalletService;
 import com.pixservice.domain.model.Wallet;
 import com.pixservice.domain.repository.WalletRepository;
 import org.junit.jupiter.api.BeforeEach;

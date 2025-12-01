@@ -1,13 +1,16 @@
-package com.pixservice.application.service;
+package com.pixservice.service;
 
 import com.pixservice.application.dto.PixWebhookRequest;
 import com.pixservice.application.dto.PixWebhookResponse;
+import com.pixservice.application.service.WebhookService;
 import com.pixservice.domain.model.*;
-import com.pixservice.domain.repository.*;
+import com.pixservice.domain.repository.LedgerEntryRepository;
+import com.pixservice.domain.repository.PixEventRepository;
+import com.pixservice.domain.repository.PixTransactionRepository;
+import com.pixservice.domain.repository.WalletRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -18,8 +21,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 
 @ExtendWith(MockitoExtension.class)
 class WebhookServiceTest {

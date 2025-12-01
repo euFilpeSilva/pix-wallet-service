@@ -14,7 +14,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
@@ -23,7 +22,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Transactional
 @org.springframework.test.context.ActiveProfiles("test")
 class PixKeyControllerIntegrationTest {
 
@@ -39,19 +37,45 @@ class PixKeyControllerIntegrationTest {
     @Autowired
     private PixKeyRepository pixKeyRepository;
 
+    @Autowired
+    private com.pixservice.domain.repository.LedgerEntryRepository ledgerEntryRepository;
+
+    @Autowired
+    private com.pixservice.domain.repository.PixTransactionRepository pixTransactionRepository;
+
+    @Autowired
+    private com.pixservice.domain.repository.IdempotencyKeyRepository idempotencyKeyRepository;
+
+    @Autowired
+    private com.pixservice.domain.repository.PixEventRepository pixEventRepository;
+
     private Wallet existingWallet;
     private PixKey existingPixKey;
 
     @BeforeEach
     void setUp() {
-        pixKeyRepository.deleteAll();
-        walletRepository.deleteAll();
+        cleanupDatabase();
 
         existingWallet = new Wallet("testUser", new BigDecimal("100.00"));
         existingWallet = walletRepository.save(existingWallet);
 
         existingPixKey = new PixKey("test@email.com", PixKeyType.EMAIL, existingWallet);
         existingPixKey = pixKeyRepository.save(existingPixKey);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        cleanupDatabase();
+    }
+
+    private void cleanupDatabase() {
+        // Delete in correct order to avoid foreign key constraint violations
+        idempotencyKeyRepository.deleteAll();
+        pixEventRepository.deleteAll();
+        pixTransactionRepository.deleteAll();
+        ledgerEntryRepository.deleteAll();
+        pixKeyRepository.deleteAll();
+        walletRepository.deleteAll();
     }
 
     @Test

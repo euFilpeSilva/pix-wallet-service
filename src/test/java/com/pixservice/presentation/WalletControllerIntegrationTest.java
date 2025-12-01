@@ -2,7 +2,6 @@ package com.pixservice.presentation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pixservice.application.dto.CreateWalletRequest;
-import com.pixservice.application.dto.WalletResponse;
 import com.pixservice.domain.model.Wallet;
 import com.pixservice.domain.repository.WalletRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,12 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Transactional
 @org.springframework.test.context.ActiveProfiles("test")
 class WalletControllerIntegrationTest {
 
@@ -35,13 +34,43 @@ class WalletControllerIntegrationTest {
     @Autowired
     private WalletRepository walletRepository;
 
+    @Autowired
+    private com.pixservice.domain.repository.LedgerEntryRepository ledgerEntryRepository;
+
+    @Autowired
+    private com.pixservice.domain.repository.PixKeyRepository pixKeyRepository;
+
+    @Autowired
+    private com.pixservice.domain.repository.PixTransactionRepository pixTransactionRepository;
+
+    @Autowired
+    private com.pixservice.domain.repository.IdempotencyKeyRepository idempotencyKeyRepository;
+
+    @Autowired
+    private com.pixservice.domain.repository.PixEventRepository pixEventRepository;
+
     private Wallet existingWallet;
 
     @BeforeEach
     void setUp() {
-        walletRepository.deleteAll(); // Clean up before each test
+        cleanupDatabase();
         existingWallet = new Wallet("testUser", new BigDecimal("500.00"));
         existingWallet = walletRepository.save(existingWallet);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        cleanupDatabase();
+    }
+
+    private void cleanupDatabase() {
+        // Delete in correct order to avoid foreign key constraint violations
+        idempotencyKeyRepository.deleteAll();
+        pixEventRepository.deleteAll();
+        pixTransactionRepository.deleteAll();
+        ledgerEntryRepository.deleteAll();
+        pixKeyRepository.deleteAll();
+        walletRepository.deleteAll();
     }
 
     @Test

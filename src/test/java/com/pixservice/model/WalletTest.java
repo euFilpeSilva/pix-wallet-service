@@ -1,5 +1,6 @@
-package com.pixservice.domain.model;
+package com.pixservice.model;
 
+import com.pixservice.domain.model.Wallet;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

@@ -28,7 +28,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@Transactional
 @org.springframework.test.context.ActiveProfiles("test")
 class PixTransferControllerIntegrationTest {
 
@@ -47,15 +46,22 @@ class PixTransferControllerIntegrationTest {
     @Autowired
     private IdempotencyKeyRepository idempotencyKeyRepository;
 
+    @Autowired
+    private com.pixservice.domain.repository.PixTransactionRepository pixTransactionRepository;
+
+    @Autowired
+    private com.pixservice.domain.repository.LedgerEntryRepository ledgerEntryRepository;
+
+    @Autowired
+    private com.pixservice.domain.repository.PixEventRepository pixEventRepository;
+
     private Wallet fromWallet;
     private Wallet toWallet;
     private PixKey toPixKey;
 
     @BeforeEach
     void setUp() {
-        idempotencyKeyRepository.deleteAll();
-        pixKeyRepository.deleteAll();
-        walletRepository.deleteAll();
+        cleanupDatabase();
 
         fromWallet = new Wallet("user1", new BigDecimal("1000.00"));
         fromWallet = walletRepository.save(fromWallet);
@@ -65,6 +71,21 @@ class PixTransferControllerIntegrationTest {
 
         toPixKey = new PixKey("recipient@email.com", PixKeyType.EMAIL, toWallet);
         toPixKey = pixKeyRepository.save(toPixKey);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        cleanupDatabase();
+    }
+
+    private void cleanupDatabase() {
+        // Delete in correct order to avoid foreign key constraint violations
+        idempotencyKeyRepository.deleteAll();
+        pixEventRepository.deleteAll();
+        pixTransactionRepository.deleteAll();
+        ledgerEntryRepository.deleteAll();
+        pixKeyRepository.deleteAll();
+        walletRepository.deleteAll();
     }
 
     @Test

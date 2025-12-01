@@ -1,3 +1,4 @@
+version: '3.8'
 services:
   postgres:
     image: postgres:16
@@ -15,17 +16,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  pix-service:
-    build: .
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DB_URL: jdbc:postgresql://postgres:5432/pixdb
-      DB_USER: pixuser
-      DB_PASSWORD: pixpass
-    ports:
-      - "8080:8080"
-    # Em produção, definir as variáveis de ambiente sem defaults fracos e usar um gerenciador de segredos.
+    restart: unless-stopped
+
 volumes:
   pixdb_data:

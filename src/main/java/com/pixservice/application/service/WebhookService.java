@@ -4,6 +4,7 @@ import com.pixservice.application.dto.PixWebhookRequest;
 import com.pixservice.application.dto.PixWebhookResponse;
 import com.pixservice.domain.model.*;
 import com.pixservice.domain.repository.*;
+import com.pixservice.infrastructure.logging.MdcUtils;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
@@ -78,37 +79,48 @@ public class WebhookService {
 
     @Transactional
     public PixWebhookResponse processWebhookEvent(PixWebhookRequest request) {
-        webhookReceivedCounter.increment();
-        logRequest(request);
+        // Adicionar eventId e endToEndId ao MDC para rastreamento automático
+        MdcUtils.setEventId(request.getEventId());
+        MdcUtils.setEndToEndId(request.getEndToEndId());
 
-        // Idempotência do evento (duplicado completo já finalizado)
-        PixWebhookResponse earlyDuplicateResponse = handleEarlyDuplicate(request);
-        if (earlyDuplicateResponse != null) {
-            return earlyDuplicateResponse;
+        try {
+            webhookReceivedCounter.increment();
+            logRequest(request);
+
+            // Idempotência do evento (duplicado completo já finalizado)
+            PixWebhookResponse earlyDuplicateResponse = handleEarlyDuplicate(request);
+            if (earlyDuplicateResponse != null) {
+                return earlyDuplicateResponse;
+            }
+
+            // Persistir evento (garantir exatamente-uma vez por (eventId, endToEndId))
+            PixWebhookResponse persistedDuplicateResponse = persistEvent(request);
+            if (persistedDuplicateResponse != null) {
+                return persistedDuplicateResponse; // Evento já registrado em corrida -> não reprocesar efeitos
+            }
+
+            // Carregar e bloquear transação para processamento seguro
+            PixTransaction pixTransaction = loadAndLockTransaction(request.getEndToEndId());
+
+            if (isAlreadyFinalized(pixTransaction)) {
+                return new PixWebhookResponse(RESPONSE_SUCCESS, "Transação já em estado final ou processada. Evento registrado.");
+            }
+
+            // Processar com retry para conflitos otimistas
+            return processWithRetry(pixTransaction, request);
+        } finally {
+            // Limpar MDC após processamento
+            MdcUtils.clearEventId();
+            MdcUtils.clearEndToEndId();
         }
-
-        // Persistir evento (garantir exatamente-uma vez por (eventId, endToEndId))
-        PixWebhookResponse persistedDuplicateResponse = persistEvent(request);
-        if (persistedDuplicateResponse != null) {
-            return persistedDuplicateResponse; // Evento já registrado em corrida -> não reprocesar efeitos
-        }
-
-        // Carregar e bloquear transação para processamento seguro
-        PixTransaction pixTransaction = loadAndLockTransaction(request.getEndToEndId());
-
-        if (isAlreadyFinalized(pixTransaction)) {
-            return new PixWebhookResponse(RESPONSE_SUCCESS, "Transação já em estado final ou processada. Evento registrado.");
-        }
-
-        // Processar com retry para conflitos otimistas
-        return processWithRetry(pixTransaction, request);
     }
 
     // ---------------- Métodos privados (SRP) ----------------
 
     private void logRequest(PixWebhookRequest request) {
-        log.info("Recebido webhook Pix - eventId={}, endToEndId={}, eventType={}, occurredAt={}",
-                request.getEventId(), request.getEndToEndId(), request.getEventType(), request.getOccurredAt());
+        // eventId e endToEndId já estão no MDC, não precisa repetir
+        log.info("Recebido webhook Pix - eventType={}, occurredAt={}",
+                request.getEventType(), request.getOccurredAt());
     }
 
     /**

@@ -151,6 +151,12 @@ A aplicação sobe na porta `8080` e o Flyway valida/aplica o schema automaticam
 ### 6. Correções
 - ✅ Removido comentário TODO desatualizado em `WalletController`
 
+### 7. Documentação Adicional
+- ✅ `docs/OBSERVABILIDADE.md` - Guia completo de observabilidade (MDC, métricas, logs)
+- ✅ `docs/GUIA_RAPIDO_WINDOWS.md` - Referência rápida para Windows PowerShell
+- ✅ `docs/METRICAS.md` - Descrição detalhada das métricas customizadas
+- ✅ `docs/VERIFICACAO_METRICAS.md` - Como testar cada métrica
+
 ## Como Testar
 
 ### Testes Automatizados

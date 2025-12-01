@@ -7,6 +7,7 @@ import com.pixservice.application.idempotency.IdempotentResponse;
 import com.pixservice.application.validation.PixTransferValidator;
 import com.pixservice.domain.model.*;
 import com.pixservice.domain.repository.*;
+import com.pixservice.infrastructure.logging.MdcUtils;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -60,7 +61,7 @@ public class PixTransferService {
         this.pixEventRepository = pixEventRepository;
 
         // Inicializar métricas
-        this.pixTransferInitiatedCounter = Counter.builder("pix.transfer.iniciated")
+        this.pixTransferInitiatedCounter = Counter.builder("pix.transfer.initiated")
                 .description("Total de transferências Pix iniciadas")
                 .tag(METRIC_TAG_SERVICE_KEY, METRIC_TAG_SERVICE_VALUE)
                 .register(meterRegistry);
@@ -78,17 +79,29 @@ public class PixTransferService {
 
     @Transactional
     public PixTransferResponse transfer(String idempotencyKeyHeader, PixTransferRequest request) {
-        log.info("Iniciando transferência Pix - idempotencyKey={}, fromWallet={}, toPixKey={}, amount={}",
-                idempotencyKeyHeader, request.getFromWalletId(), request.getToPixKey(), request.getAmount());
-        pixTransferInitiatedCounter.increment();
+        // Adicionar idempotencyKey ao MDC para rastreamento automático em todos os logs
+        MdcUtils.setIdempotencyKey(idempotencyKeyHeader);
+        MdcUtils.setWalletId(request.getFromWalletId());
 
-        Optional<PixTransferResponse> cached = checkIdempotency(idempotencyKeyHeader);
-        if (cached.isPresent()) {
-            pixTransferIdempotentCounter.increment();
-            log.info("Requisição idempotente detectada - idempotencyKey={}, endToEndId={}", idempotencyKeyHeader, cached.get().getEndToEndId());
-            return cached.get();
+        try {
+            log.info("Iniciando transferência Pix - fromWallet={}, toPixKey={}, amount={}",
+                    request.getFromWalletId(), request.getToPixKey(), request.getAmount());
+            pixTransferInitiatedCounter.increment();
+
+            Optional<PixTransferResponse> cached = checkIdempotency(idempotencyKeyHeader);
+            if (cached.isPresent()) {
+                pixTransferIdempotentCounter.increment();
+                String endToEndId = cached.get().getEndToEndId();
+                MdcUtils.setEndToEndId(endToEndId);
+                log.info("Requisição idempotente detectada - endToEndId={}", endToEndId);
+                return cached.get();
+            }
+            return processTransfer(idempotencyKeyHeader, request);
+        } finally {
+            // Limpar MDC após processamento
+            MdcUtils.clearEndToEndId();
+            MdcUtils.clearWalletId();
         }
-        return processTransfer(idempotencyKeyHeader, request);
     }
 
     private PixTransferResponse processTransfer(String idempotencyKeyHeader, PixTransferRequest request) {
@@ -99,11 +112,12 @@ public class PixTransferService {
         validator.validateTransfer(request.getAmount(), fromWalletRead, toWalletRead, toPixKeyRead.getKeyValue());
 
         String endToEndId = UUID.nameUUIDFromBytes(idempotencyKeyHeader.getBytes(StandardCharsets.UTF_8)).toString();
+        MdcUtils.setEndToEndId(endToEndId); // Adicionar ao MDC para rastreamento
         PixTransferResponse provisionalResponse = new PixTransferResponse(endToEndId, PixTransactionStatus.PENDING);
 
         try {
             idempotencyService.saveIdempotentResponse(idempotencyKeyHeader, provisionalResponse, HttpStatus.ACCEPTED);
-            log.info("Idempotent response registrada - idempotencyKey={}, endToEndId={}", idempotencyKeyHeader, endToEndId);
+            log.info("Idempotent response registrada - endToEndId={}", endToEndId);
         } catch (DataIntegrityViolationException e) {
             pixTransferIdempotentCounter.increment();
             log.warn("Concorrência idempotente detectada - idempotencyKey={}", idempotencyKeyHeader);

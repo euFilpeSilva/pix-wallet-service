@@ -4,12 +4,13 @@ Este documento descreve as métricas customizadas disponíveis no Pix Service pa
 
 ## 📊 Métricas Disponíveis
 
-### Transferências Pix
+### Métricas de Transferências Pix
 
 #### `pix.transfer.initiated`
 - **Tipo:** Counter
 - **Descrição:** Total de transferências Pix iniciadas
 - **Tags:** `service=pix-transfer`
+- **Endpoint:** `/actuator/metrics/pix.transfer.initiated`
 - **Uso:** Monitorar volume total de transferências iniciadas
 
 #### `pix.transfer.idempotent`
